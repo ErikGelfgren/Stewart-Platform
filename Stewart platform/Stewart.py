@@ -14,7 +14,7 @@ def setAngle(angle, channel, kit):
 def main():
     kit = ServoKit(channels=16)
     
-    
+    #Calibrated each pwm width range to ensure 0-180 degree movement. If using other servos this may need to be changed
     kit.servo[0].set_pulse_width_range(600, 2450)
     kit.servo[1].set_pulse_width_range(600, 2500)
     kit.servo[2].set_pulse_width_range(550, 2400)
@@ -54,10 +54,13 @@ def main():
         servoDict[i]=VectorCalculation(p[i], beta[i], servo_positions[i])
     
     counter=0
+
     """Loop of movement, incremental change of translation and rotation gives new angles in getAngle()
     and sends PWM signals through setAngle(). To change movement alter translation in line 73"""
     try:
         while True:
+            
+            counter+=1
 
             #Gets list of alpha angles
             alpha = getAngle(translation, p, servoDict, yaw, roll, pitch)
@@ -70,7 +73,6 @@ def main():
                 setAngle(alpha[i], i, kit)
 
             sleep(0.01)
-            counter+=1
             
             """Incremental change of pitch yaw and roll. Change these to change rotation (Use counter for incremental change)
             A pitch or yaw higher than 20 degrees or roll higher than 45 degrees will most likley exceed maximum angles."""
@@ -89,49 +91,56 @@ def main():
 
     except Exception as e:
 
-        while not np.array_equal(translation, np.array([0, 0, 280])):
+        while not np.array_equal(translation, home):
             print(e)
 
-            direction = np.sign(translation)
-            if translation[2] > 281:
+            #Moves coordinates incrementally back to home position
+            #For z-coordinate
+            if translation[2] > home[2]+1:
                 z=-1
-            elif translation[2] < 279:
+            elif translation[2] < home[2]-1:
                 z=1
             else:
-                translation[2]=280
+                translation[2]=home[2]
                 z=0
-
+            
+            #For x and y coordinate
+            direction = np.sign(translation)
             incrementXY = np.where(translation[:2] == 0, 0, -direction[:2])
-
             increment = np.concatenate((incrementXY, [z]))
             
             translation += increment
+            #Check if any x or y distance is close to zero, if so sets this to 0
             minimumDistance = np.where(abs(translation) < 1)
             translation[minimumDistance]=0
+
+            #Moves rotations back to zero
             rotations=np.array([yaw, roll, pitch])
             lessThanOne = np.where(abs(rotations) < 0.05)
             rotations[lessThanOne]=0
             
+
             angularChange = np.sign(rotations)
-            
-            
             change = np.where(rotations == 0, 0,-angularChange*0.01)
             change = change.astype(rotations.dtype)
 
             rotations += change
-            
 
+            #Updates rotations
             yaw= rotations[0]
             roll=rotations[1]
             pitch=rotations[2]
 
+            #Calculates new angles to move to home position
             alpha = getAngle(translation, p, servoDict, yaw, roll, pitch)
 
+            #Sends information to servos
             for i in range(len(alpha)):
                 if (i % 2) != 0:
                     alpha[i]=180-alpha[i]
                 setAngle(alpha[i], i, kit)
 
-            sleep(0.02)
+            sleep(0.01)
 
-main()
+if __name__ == "__main__":
+    main()
