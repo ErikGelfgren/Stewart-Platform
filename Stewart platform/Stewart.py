@@ -56,7 +56,7 @@ def main():
     counter=0
 
     """Loop of movement, incremental change of translation and rotation gives new angles in getAngle()
-    and sends PWM signals through setAngle(). To change movement alter translation in line 73"""
+    and sends PWM signals through setAngle(). To change movement alter rotation in line 79-81 and translation in line 86"""
     try:
         while True:
             
